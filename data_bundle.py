@@ -5,14 +5,28 @@ import pdb
 import pysmiles
 from dgl import DGLGraph
 
+from mol2vec import features
+from gensim.models import word2vec
+from rdkit import Chem
+
+def mole2vec(mols: list):
+    """
+    mols: list of str(SMILES)
+    return: list of np.array
+    """
+
+    model = word2vec.Word2Vec.load('./model/model_300dim.pkl')
+    rd_mol = [Chem.MolFromSmiles(i) for i in mols]
+    sentences = [features.MolSentence(features.mol2alt_sentence(i, 1)) for i in rd_mol]
+    vecs = [features.sentences2vec(i, model, unseen='UNK') for i in sentences]
+    return vecs
+
 def load_data(path):
 	data_bundle = []
-	#pdb.set_trace()
 	if not os.path.exists(path):
 		print("Data file not exist :", path)
 		return False
 	with open(path, 'r+') as f:
-		#pdb.set_trace()
 		f.readline()
 		for i, line in enumerate(f):
 			line_ = line.strip().split(",")
@@ -25,9 +39,11 @@ def load_data(path):
 	return data_bundle
 
 def load_data_bundle(folder_path, include_dev = False):
+	include_dev = 'fold' in folder_path
 	datasets = ['train', 'test'] + (['dev'] if include_dev else [])
 	paths = [folder_path+'/'+dataset+'.csv' for dataset in datasets]
 	data_bundle = { dataset: load_data(paths[i]) for i, dataset in enumerate(datasets)}
+	#pdb.set_trace()
 	vocab = parse_graph(data_bundle) 
 	# data_bundle的每个dataset增加第三列：Dgraph 
 	# 同时可以通过vocab['element/aromatics'] 来访问element的标签集合
@@ -65,12 +81,18 @@ def parse_graph(data_bundle):
 	vocab['charges'] = charges
 	vocab['hcounts'] = hcounts
 	vocab['orders'] = orders
+
+	#pdb.set_trace()
 	
 	ele_to_idx = { ele: i for i, ele in enumerate(elements)}
 	cha_to_idx = { cha: i for i, cha in enumerate(charges)}
 
 	for ky in data_bundle.keys():
 		dataset = data_bundle[ky]
+		smiles = [data[0] for data in dataset] 
+
+		mol_vec = mole2vec(smiles)
+
 		for i, data in enumerate(dataset):
 			graph = data[2]
 			graph = graph.to_directed()
@@ -89,5 +111,6 @@ def parse_graph(data_bundle):
 
 			dgraph.add_edges(dgraph.nodes(), dgraph.nodes())
 			data_bundle[ky][i].append(dgraph)
+			data_bundle[ky][i].append(mol_vec[i])
 
 	return vocab
