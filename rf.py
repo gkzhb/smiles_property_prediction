@@ -7,9 +7,6 @@ from rdkit import Chem
 from sklearn.metrics import roc_curve, roc_auc_score, precision_recall_curve, auc
 from sklearn.ensemble import RandomForestClassifier
 
-if len(sys.argv) < 2:
-    print("python rf.py <data path>\n")
-    exit()
 
 model = word2vec.Word2Vec.load('./model/model_300dim.pkl')
 
@@ -23,26 +20,45 @@ def moles2vec(mols: list):
 	vecs = sentences2vec(sentences, model, unseen='UNK')
 	return vecs
 
-df = pd.read_csv(os.path.join(sys.argv[1], 'train.csv'))
+def train(path):
+    print('training ', path)
+    df = pd.read_csv(os.path.join(path, 'train.csv'))
 
-x = df['smiles']
-x = moles2vec(x)
-x = np.array(x)
-y = df['activity']
+    x = df['smiles']
+    x = moles2vec(x)
+    x = np.array(x)
+    y = df['activity']
 
-clf = RandomForestClassifier(n_estimators=500, random_state=0)
-clf.fit(x, y)
+    clf = RandomForestClassifier(n_estimators=500, random_state=0)
+    clf.fit(x, y)
 
-df = pd.read_csv(os.path.join(sys.argv[1], 'test.csv'))
-x_test = df['smiles']
-x_test = moles2vec(x_test)
-y_test = df['activity']
+    df = pd.read_csv(os.path.join(path, 'test.csv'))
+    x_test = df['smiles']
+    x_test = moles2vec(x_test)
+    y_test = df['activity']
 
-y_pred = clf.predict(x_test)
-prob = clf.predict_proba(x_test).T[1] # Probabilities for class 1
-del clf
-print('roc auc: ', roc_auc_score(y_test, prob))
+    y_pred = clf.predict(x_test)
+    prob = clf.predict_proba(x_test).T[1]
+    del clf
+    roc_auc = roc_auc_score(y_test, prob)
 
-pr, re, _ = precision_recall_curve(y_test, prob)
-prc_auc = auc(re, pr)
-print('prc auc: ', prc_auc)
+    pr, re, _ = precision_recall_curve(y_test, prob)
+    prc_auc = auc(re, pr)
+    return roc_auc, prc_auc
+
+def train_all(path):
+    t = 'fold_{}'
+    rocs, prcs = [], []
+    for i in range(10):
+        roc, prc = train(os.path.join(path, t.format(i)))
+        rocs.append(roc)
+        prcs.append(prc)
+    for i in range(10):
+        print('fold_{}:\n  roc auc: {}\n  prc auc: {}'.format(i, rocs[i], prcs[i]))
+
+if __name__ == '__main__':
+    if len(sys.argv) < 2:
+            print("python rf.py <data path>\n")
+            exit()
+    train_all(sys.argv[1])
+
