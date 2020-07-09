@@ -56,7 +56,7 @@ if __name__ == '__main__':
 		if (model_name=='bert'):
 			model = BERT()
 		if (model_name=='lstm'):
-			pass
+			model = LSTM()
 		models.append(model)
 
 	criterion = torch.nn.CrossEntropyLoss()

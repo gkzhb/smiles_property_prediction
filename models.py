@@ -112,6 +112,21 @@ class BERT(nn.Module):
 		last_hidden_states = self.bert.encoder(inputs)
 
 class LSTM(nn.Module):
-	def __init__(self):
+	def __init__(self, in_dim=300, hidden_size=500, out_dim=2, num_layers=3):
 		super().__init__()
 
+		self.clas = 'LSTM'
+		self.out_dim = out_dim
+		self.rnn = nn.LSTM(
+			input_size=in_dim,
+			hidden_size=hidden_size,
+			num_layers=num_layers,
+			batch_first=True
+		)
+		self.out = nn.Linear(hidden_size, out_dim)
+
+	def forward(self, x):
+		r_out, (h_n, h_c) = self.rnn(x, None)
+
+		out = self.out(r_out[:, -1, :])
+		return out

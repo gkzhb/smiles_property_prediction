@@ -5,21 +5,30 @@ import pdb
 import pysmiles
 from dgl import DGLGraph
 
-from mol2vec import features
+from mol2vec.features import MolSentence, sentences2vec, mol2alt_sentence
 from gensim.models import word2vec
 from rdkit import Chem
 
-def mole2vec(mols: list):
-    """
-    mols: list of str(SMILES)
-    return: list of np.array
-    """
+model = word2vec.Word2Vec.load('./model/model_300dim.pkl')
 
-    model = word2vec.Word2Vec.load('./model/model_300dim.pkl')
-    rd_mol = [Chem.MolFromSmiles(i) for i in mols]
-    sentences = [features.MolSentence(features.mol2alt_sentence(i, 1)) for i in rd_mol]
-    vecs = [features.sentences2vec(i, model, unseen='UNK') for i in sentences]
-    return vecs
+def mole2vec(mol: str):
+	"""
+	mol: str(SMILES)
+	return: np.array
+	"""
+	rd_mol = Chem.MolFromSmiles(mol)
+	sentence = MolSentence(mol2alt_sentence(rd_mol, 1))
+	return sentences2vec(sentence, model, unseen='UNK')
+
+def moles2vec(mols: list):
+	"""
+	mols: list of str(SMILES)
+	return: list of np.array
+	"""
+	rd_mol = [Chem.MolFromSmiles(i) for i in mols]
+	sentences = [MolSentence(mol2alt_sentence(i, 1)) for i in rd_mol]
+	vecs = [sentences2vec(i, model, unseen='UNK') for i in sentences]
+	return vecs
 
 def load_data(path):
 	data_bundle = []
@@ -91,7 +100,7 @@ def parse_graph(data_bundle):
 		dataset = data_bundle[ky]
 		smiles = [data[0] for data in dataset] 
 
-		mol_vec = mole2vec(smiles)
+		mol_vec = moles2vec(smiles)
 
 		for i, data in enumerate(dataset):
 			graph = data[2]

@@ -1,12 +1,13 @@
 import torch
 import torch as tc
 import torch.nn.functional as F
+import torch.nn.utils.rnn as rnn_utils
 from tqdm import tqdm
 import pdb
 import random
 from sklearn.metrics import roc_auc_score, precision_recall_curve, auc 
 
-inputs_col = {'GCN': 3, 'BERT':4}
+inputs_col = {'GCN': 3, 'BERT': 4, 'LSTM': 4}
 
 def proprocessing(model_type, inputs):
 	if model_type == 'BERT':
@@ -20,7 +21,9 @@ def proprocessing(model_type, inputs):
 			bert_inputs[batch] = input_tensor
 			attention_mask[bat] = torch.tensor([ int(i<len_) for i in range(512)])
 	elif model_type == 'LSTM':
-		pass
+		data = [torch.tensor(i) for i in inputs]
+		data = rnn_utils.pad_sequence(data, batch_first=True)
+		return data, None
 	else:
 		_ = None
 		return inputs, _
@@ -122,11 +125,11 @@ class Trainer:
 				for m, model in enumerate(models):
 					#pdb.set_trace()
 					inputs = [data[inputs_col[models_class[m]]] for data in batch_data]
-					inputs, attention_mask = proprocessing(model_class[m], inputs)
+					inputs, attention_mask = proprocessing(models_class[m], inputs)
 					preds = model(inputs)
 					preds_list.append(preds.unsqueeze(0)) 
 				preds_list = torch.cat(preds_list, dim = 0)
-				preds_ensemble = ensemble_weights * preds_list # 按元素乘
+				preds_ensemble = ensemble_weights * preds_list.to(device) # 按元素乘
 				preds_ensemble = preds_ensemble.sum(dim = 0)
 				preds_list = [p[1].item() for p in preds_ensemble]
 				all_preds += preds_list
@@ -185,11 +188,11 @@ class Trainer:
 				preds_list = []
 				for m, model in enumerate(models):
 					inputs = [data[inputs_col[models_class[m]]] for data in batch_data]
-					inputs, attention_mask = proprocessing(model_class[m], inputs)
+					inputs, attention_mask = proprocessing(models_class[m], inputs)
 					preds = model(inputs)
 					preds_list.append(preds.unsqueeze(0)) 
 				preds_list = torch.cat(preds_list, dim = 0)
-				preds_ensemble = ensemble_weights * preds_list # 按元素乘
+				preds_ensemble = ensemble_weights * preds_list.to(device) # 按元素乘
 				preds_ensemble = preds_ensemble.sum(dim = 0)
 				preds_list = [ p[1].item() for p in preds_ensemble]
 				all_preds += preds_list
