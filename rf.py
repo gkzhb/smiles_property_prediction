@@ -11,14 +11,14 @@ from sklearn.ensemble import RandomForestClassifier
 model = word2vec.Word2Vec.load('./model/model_300dim.pkl')
 
 def moles2vec(mols: list):
-	"""
-	mols: list of str(SMILES)
-	return: list of np.array
-	"""
-	rd_mol = [Chem.MolFromSmiles(i) for i in mols]
-	sentences = [MolSentence(mol2alt_sentence(i, 1)) for i in rd_mol]
-	vecs = sentences2vec(sentences, model, unseen='UNK')
-	return vecs
+    """
+    mols: list of str(SMILES)
+    return: list of np.array
+    """
+    rd_mol = [Chem.MolFromSmiles(i) for i in mols]
+    sentences = [MolSentence(mol2alt_sentence(i, 1)) for i in rd_mol]
+    vecs = sentences2vec(sentences, model, unseen='UNK')
+    return vecs
 
 def train(path):
     print('training ', path)
@@ -29,7 +29,7 @@ def train(path):
     x = np.array(x)
     y = df['activity']
 
-    clf = RandomForestClassifier(n_estimators=500, random_state=0)
+    clf = RandomForestClassifier(n_estimators=500, oob_score=False, random_state=0)
     clf.fit(x, y)
 
     df = pd.read_csv(os.path.join(path, 'test.csv'))
@@ -55,10 +55,13 @@ def train_all(path):
         prcs.append(prc)
     for i in range(10):
         print('fold_{}:\n  roc auc: {}\n  prc auc: {}'.format(i, rocs[i], prcs[i]))
+    print(f'mean and std for roc aucs: {np.mean(rocs), np.std(rocs)}')
+    print(f'mean and std for prc aucs: {np.mean(prcs), np.std(prcs)}')
 
 if __name__ == '__main__':
-    if len(sys.argv) < 2:
-            print("python rf.py <data path>\n")
-            exit()
-    train_all(sys.argv[1])
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--path', type=str, default='data/train_cv')
+    arg = parser.parse_args()
+    train_all(arg.path)
 
